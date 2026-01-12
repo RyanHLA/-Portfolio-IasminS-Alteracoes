@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { r2Storage } from '@/lib/r2'; // <--- Importação do R2 adicionada
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -482,37 +483,29 @@ const AdminGalleryNew = () => {
   };
 
   // Photo upload & CRUD
+  // --- FUNÇÃO ATUALIZADA PARA R2 ---
   const uploadImage = async (
     file: File,
     onProgress: (progress: number) => void
   ): Promise<string | null> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `gallery/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-
+    // Simulação de progresso (R2 não tem progresso nativo simples no browser via SDK)
     let currentProgress = 0;
     const progressInterval = setInterval(() => {
       currentProgress = Math.min(currentProgress + 10, 90);
       onProgress(currentProgress);
-    }, 100);
+    }, 150);
 
-    const { error } = await supabase.storage
-      .from('site-images')
-      .upload(fileName, file);
+    // Upload usando o serviço do Cloudflare R2
+    const publicUrl = await r2Storage.upload(file, 'gallery');
 
     clearInterval(progressInterval);
 
-    if (error) {
-      console.error('Upload error:', error);
+    if (publicUrl) {
+      onProgress(100);
+      return publicUrl;
+    } else {
       return null;
     }
-
-    onProgress(100);
-
-    const { data } = supabase.storage
-      .from('site-images')
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
   };
 
   const handleFilesSelected = useCallback(async (files: FileList | File[]) => {
@@ -547,13 +540,14 @@ const AdminGalleryNew = () => {
       });
 
       if (url) {
+        // O upload já foi feito no R2, agora salvamos a referência no Supabase
         await supabase.from('site_images').insert({
           section: 'gallery',
           category: selectedAlbum.category,
           album_id: selectedAlbum.id,
           title: file.name.replace(/\.[^/.]+$/, ''),
           description: '',
-          image_url: url,
+          image_url: url, // A URL vem do R2
           display_order: images.length + i,
         });
 
@@ -617,9 +611,23 @@ const AdminGalleryNew = () => {
     }
   };
 
+  // --- FUNÇÃO ATUALIZADA PARA DELETAR DO R2 ---
   const handleDeletePhoto = async (id: string) => {
     if (!confirm('Excluir esta foto?')) return;
 
+    // 1. Buscar a URL da imagem no banco para poder deletar do R2
+    const { data: photoData } = await supabase
+      .from('site_images')
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    // 2. Se tiver URL, deleta do R2 (não bloqueia se falhar, para garantir limpeza do banco)
+    if (photoData?.image_url) {
+      await r2Storage.delete(photoData.image_url);
+    }
+
+    // 3. Deleta do Banco de Dados (Supabase)
     const { error } = await supabase.from('site_images').delete().eq('id', id);
 
     if (error) {
