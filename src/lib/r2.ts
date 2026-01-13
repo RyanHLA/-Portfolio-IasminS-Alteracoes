@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
+// Inicializa o cliente S3 (R2)
 const r2Client = new S3Client({
   region: "auto",
   endpoint: import.meta.env.VITE_R2_ENDPOINT,
@@ -10,24 +11,30 @@ const r2Client = new S3Client({
 });
 
 export const r2Storage = {
-  // Função para fazer Upload
+  // Função para Upload
   upload: async (file: File, folder: string = 'gallery'): Promise<string | null> => {
     try {
-      // Cria um nome único para o arquivo
       const fileExt = file.name.split('.').pop();
+      // Gera nome único
       const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      // --- A CORREÇÃO ESTÁ AQUI ---
+      // Convertemos o File para ArrayBuffer e depois para Uint8Array
+      // Isso impede que o AWS SDK tente usar streams incompatíveis
+      const fileBuffer = await file.arrayBuffer();
+      const fileBody = new Uint8Array(fileBuffer);
 
       const command = new PutObjectCommand({
         Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
         Key: fileName,
-        Body: file,
+        Body: fileBody, // Enviamos o buffer, não o objeto File direto
         ContentType: file.type,
-        // ACL: 'public-read', // Descomente se precisar forçar, mas geralmente não precisa no R2
+        ContentLength: file.size, // Boa prática informar o tamanho
       });
 
       await r2Client.send(command);
 
-      // Retorna a URL pública pronta para salvar no banco
+      // Retorna a URL pública
       return `${import.meta.env.VITE_R2_PUBLIC_URL}/${fileName}`;
     } catch (error) {
       console.error("Erro no upload R2:", error);
@@ -39,10 +46,8 @@ export const r2Storage = {
   delete: async (imageUrl: string) => {
     try {
       if (!imageUrl) return;
-      
+
       const publicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
-      // Remove a parte da URL pública para pegar apenas o caminho do arquivo (Key)
-      // Ex: remove "https://pub-xyz.r2.dev/" e deixa "gallery/foto.jpg"
       const key = imageUrl.replace(`${publicUrl}/`, '');
 
       const command = new DeleteObjectCommand({

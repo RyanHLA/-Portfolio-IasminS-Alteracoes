@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { r2Storage } from '@/lib/r2'; // <--- Importação do R2 adicionada
+import { r2Storage } from '@/lib/r2';
+import imageCompression from 'browser-image-compression'; // <--- Biblioteca de compressão
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -286,6 +287,12 @@ const AdminGalleryNew = () => {
   const [loading, setLoading] = useState(true);
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
   
+  // Limites de Armazenamento (Cloudflare R2 Free Tier: 10GB)
+  const [totalUsage, setTotalUsage] = useState(0);
+  const LIMIT_GB = 10;
+  const LIMIT_BYTES = LIMIT_GB * 1024 * 1024 * 1024;
+  const SAFE_LIMIT = LIMIT_BYTES * 0.95; // 9.5 GB
+  
   // Dialog state
   const [isAlbumDialogOpen, setIsAlbumDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
@@ -319,6 +326,7 @@ const AdminGalleryNew = () => {
 
   useEffect(() => {
     fetchAlbums();
+    checkStorageUsage();
   }, []);
 
   useEffect(() => {
@@ -327,8 +335,17 @@ const AdminGalleryNew = () => {
     }
   }, [selectedAlbum]);
 
+  // Checa uso de armazenamento
+  const checkStorageUsage = async () => {
+    // Cast 'as any' para evitar erro de TypeScript com a função SQL customizada
+    const { data, error } = await supabase.rpc('get_storage_usage' as any);
+    
+    if (!error && typeof data === 'number') {
+      setTotalUsage(data);
+    }
+  };
+
   useEffect(() => {
-    // Fetch photo counts for all albums
     const fetchAllPhotoCounts = async () => {
       const { data } = await supabase
         .from('site_images')
@@ -482,28 +499,44 @@ const AdminGalleryNew = () => {
     setIsAlbumDialogOpen(false);
   };
 
-  // Photo upload & CRUD
-  // --- FUNÇÃO ATUALIZADA PARA R2 ---
+  // --- FUNÇÃO OTIMIZADA COM COMPRESSÃO (Full HD - Padrão Web) ---
   const uploadImage = async (
-    file: File,
+    originalFile: File,
     onProgress: (progress: number) => void
-  ): Promise<string | null> => {
-    // Simulação de progresso (R2 não tem progresso nativo simples no browser via SDK)
-    let currentProgress = 0;
-    const progressInterval = setInterval(() => {
-      currentProgress = Math.min(currentProgress + 10, 90);
-      onProgress(currentProgress);
-    }, 150);
+  ): Promise<{ url: string; size: number } | null> => {
+    
+    // Configurações: Full HD (1920px), máx 1MB, WebP
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      fileType: "image/webp"
+    };
 
-    // Upload usando o serviço do Cloudflare R2
-    const publicUrl = await r2Storage.upload(file, 'gallery');
+    try {
+      // 1. Comprime a imagem no navegador
+      const compressedFile = await imageCompression(originalFile, options);
 
-    clearInterval(progressInterval);
+      let currentProgress = 0;
+      const progressInterval = setInterval(() => {
+        currentProgress = Math.min(currentProgress + 10, 90);
+        onProgress(currentProgress);
+      }, 150);
 
-    if (publicUrl) {
-      onProgress(100);
-      return publicUrl;
-    } else {
+      // 2. Envia o arquivo JÁ COMPRIMIDO para o R2
+      const publicUrl = await r2Storage.upload(compressedFile, 'gallery');
+
+      clearInterval(progressInterval);
+
+      if (publicUrl) {
+        onProgress(100);
+        // Retorna a URL e o tamanho novo (reduzido)
+        return { url: publicUrl, size: compressedFile.size };
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error("Erro na compressão ou upload:", error);
       return null;
     }
   };
@@ -511,8 +544,17 @@ const AdminGalleryNew = () => {
   const handleFilesSelected = useCallback(async (files: FileList | File[]) => {
     if (!selectedAlbum) return;
     
+    // 1. Verificar Limite ANTES de começar (Baseado no uso atual)
+    if (totalUsage >= SAFE_LIMIT) {
+      alert("⚠️ LIMITE DE ARMAZENAMENTO ATINGIDO (10GB)!\n\nVocê atingiu o limite do plano gratuito. Apague fotos antigas.");
+      return;
+    }
+
     const fileArray = Array.from(files);
     
+    // Nota: Não conseguimos prever o tamanho exato APÓS compressão aqui,
+    // então deixamos o upload começar e verificamos o uso real conforme sobe.
+
     const newUploads: UploadingFile[] = fileArray.map((file) => ({
       file,
       progress: 0,
@@ -531,7 +573,8 @@ const AdminGalleryNew = () => {
         )
       );
 
-      const url = await uploadImage(file, (progress) => {
+      // Chama o upload (que comprime e devolve o tamanho real gasto)
+      const result = await uploadImage(file, (progress) => {
         setUploadingFiles((prev) =>
           prev.map((u) =>
             u.file === file ? { ...u, progress } : u
@@ -539,17 +582,21 @@ const AdminGalleryNew = () => {
         );
       });
 
-      if (url) {
-        // O upload já foi feito no R2, agora salvamos a referência no Supabase
+      if (result) {
+        // Sucesso: Salva no banco com o tamanho OTIMIZADO
         await supabase.from('site_images').insert({
           section: 'gallery',
           category: selectedAlbum.category,
           album_id: selectedAlbum.id,
           title: file.name.replace(/\.[^/.]+$/, ''),
           description: '',
-          image_url: url, // A URL vem do R2
+          image_url: result.url,
           display_order: images.length + i,
+          size_bytes: result.size, // <--- Importante: Salva o tamanho reduzido
         });
+
+        // Atualiza contador local
+        setTotalUsage(prev => prev + result.size);
 
         setUploadingFiles((prev) =>
           prev.map((u) =>
@@ -568,10 +615,11 @@ const AdminGalleryNew = () => {
     setTimeout(() => {
       setUploadingFiles((prev) => prev.filter((u) => u.status !== 'complete'));
       fetchPhotos(selectedAlbum.id);
+      checkStorageUsage(); // Confirma o uso real do banco
     }, 1500);
 
-    toast({ title: `${fileArray.length} foto(s) enviada(s)!` });
-  }, [selectedAlbum, images.length]);
+    toast({ title: `${fileArray.length} foto(s) processada(s)!` });
+  }, [selectedAlbum, images.length, totalUsage]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -611,29 +659,28 @@ const AdminGalleryNew = () => {
     }
   };
 
-  // --- FUNÇÃO ATUALIZADA PARA DELETAR DO R2 ---
   const handleDeletePhoto = async (id: string) => {
     if (!confirm('Excluir esta foto?')) return;
 
-    // 1. Buscar a URL da imagem no banco para poder deletar do R2
+    // 1. Busca URL para deletar do R2
     const { data: photoData } = await supabase
       .from('site_images')
       .select('image_url')
       .eq('id', id)
       .single();
 
-    // 2. Se tiver URL, deleta do R2 (não bloqueia se falhar, para garantir limpeza do banco)
     if (photoData?.image_url) {
       await r2Storage.delete(photoData.image_url);
     }
 
-    // 3. Deleta do Banco de Dados (Supabase)
+    // 2. Deleta do Supabase
     const { error } = await supabase.from('site_images').delete().eq('id', id);
 
     if (error) {
       toast({ title: 'Erro ao excluir', variant: 'destructive' });
     } else {
       toast({ title: 'Foto excluída!' });
+      checkStorageUsage(); // Atualiza a barra de uso
       if (selectedAlbum) fetchPhotos(selectedAlbum.id);
     }
   };
@@ -685,7 +732,6 @@ const AdminGalleryNew = () => {
     );
   }
 
-  // Get current category label
   const currentCategoryLabel = selectedCategory 
     ? CATEGORIES.find(c => c.id === selectedCategory)?.label 
     : null;
@@ -830,7 +876,6 @@ const AdminGalleryNew = () => {
       {/* Level 3: Photo Editor */}
       {currentLevel === 'photos' && selectedAlbum && (
         <>
-          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -840,7 +885,18 @@ const AdminGalleryNew = () => {
             onChange={(e) => e.target.files && handleFilesSelected(e.target.files)}
           />
 
-          {/* Upload Area - Gold dotted border on white */}
+          {/* Opcional: Barra de Uso de Armazenamento */}
+          {/* Se quiser mostrar, basta descomentar este bloco: */}
+          {/* <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between text-sm font-medium">
+              <span className="text-slate-600">Armazenamento Gratuito (Cloudflare R2)</span>
+              <span className={totalUsage > SAFE_LIMIT ? "text-red-600" : "text-amber-600"}>
+                {(totalUsage / 1024 / 1024 / 1024).toFixed(2)} GB / {LIMIT_GB} GB
+              </span>
+            </div>
+            <Progress value={(totalUsage / LIMIT_BYTES) * 100} className="mt-2 h-2" />
+          </div> */}
+
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
