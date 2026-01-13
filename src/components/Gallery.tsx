@@ -3,12 +3,12 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 // Fallback images
-import casamentoImg from "@/assets/gallery-casamento.jpg";
-import gestanteImg from "@/assets/gallery-gestante.jpg";
-import quinzeImg from "@/assets/gallery-15anos.jpg";
-import preweddingImg from "@/assets/gallery-prewedding.jpg";
-import externoImg from "@/assets/gallery-externo.jpg";
-import eventosImg from "@/assets/gallery-eventos.jpg";
+import casamentoImg from "@/assets/casamento.jpg";
+import gestanteImg from "@/assets/gestante.jpg";
+import quinzeImg from "@/assets/15anos.jpg";
+import preweddingImg from "@/assets/prewedding.jpg";
+import externoImg from "@/assets/externo.jpg";
+import eventosImg from "@/assets/eventos.jpg";
 
 interface Category {
   id: string;
@@ -22,65 +22,43 @@ const defaultCategories: Category[] = [
     id: "casamentos",
     title: "Casamentos",
     image: casamentoImg,
-    description: "O grande dia eternizado com emoção e delicadeza",
+    description: "O grande dia eternizado",
   },
   {
     id: "gestantes",
     title: "Gestantes",
     image: gestanteImg,
-    description: "A espera mais doce registrada em cada detalhe",
+    description: "A espera mais doce",
   },
   {
     id: "15-anos",
     title: "15 Anos",
     image: quinzeImg,
-    description: "Celebrando a transição para uma nova fase",
+    description: "Celebrando a transição",
   },
   {
     id: "pre-wedding",
     title: "Pré-Wedding",
     image: preweddingImg,
-    description: "O amor do casal antes do grande dia",
+    description: "O amor do casal",
   },
   {
     id: "externo",
     title: "Externo",
     image: externoImg,
-    description: "Retratos ao ar livre com luz natural",
+    description: "Retratos ao ar livre",
   },
   {
     id: "eventos",
     title: "Eventos",
     image: eventosImg,
-    description: "Momentos especiais em celebrações únicas",
+    description: "Momentos especiais",
   },
 ];
 
 const Gallery = () => {
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
-  const [albumCounts, setAlbumCounts] = useState<Record<string, number>>({});
 
-  // Fetch album counts for each category
-  useEffect(() => {
-    const fetchAlbumCounts = async () => {
-      const { data } = await supabase
-        .from("albums")
-        .select("category")
-        .eq("status", "published");
-
-      if (data) {
-        const counts: Record<string, number> = {};
-        data.forEach((album) => {
-          counts[album.category] = (counts[album.category] || 0) + 1;
-        });
-        setAlbumCounts(counts);
-      }
-    };
-
-    fetchAlbumCounts();
-  }, []);
-
-  // Fetch gallery cover images from database
   useEffect(() => {
     const fetchGalleryImages = async () => {
       const { data } = await supabase
@@ -114,60 +92,77 @@ const Gallery = () => {
   }, []);
 
   return (
-    <div className="section-padding bg-background">
-      <div className="mx-auto max-w-7xl px-6">
-        {/* Section Header */}
-        <div className="mb-16 text-center">
-          <p className="mb-3 font-sans text-sm uppercase tracking-[0.25em] text-gold">
-            Portfólio
-          </p>
-          <h2 className="font-serif text-3xl font-normal text-foreground md:text-4xl lg:text-5xl">
-            Álbuns
-          </h2>
-          <div className="mx-auto mt-6 h-[1px] w-16 bg-gold/50" />
-          <p className="mx-auto mt-6 max-w-lg font-sans text-base font-light leading-relaxed text-muted-foreground">
-            Explore as diferentes categorias e descubra como cada momento
-            especial pode ser transformado em memória eterna
-          </p>
-        </div>
+    <div className="section-padding bg-background pb-0">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
+        
+        .custom-font-wrapper {
+            font-family: 'Montserrat', sans-serif;
+            color: #333;
+        }
+        
+        .serif-font {
+            font-family: 'Cormorant Garamond', serif;
+        }
 
-        {/* Categories Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        /* Hover Overlay Animation */
+        .portfolio-item:hover .overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .portfolio-item .overlay {
+            transition: all 0.4s ease-in-out;
+            transform: translateY(10px);
+        }
+
+        .portfolio-item img {
+            transition: transform 0.6s ease-in-out;
+        }
+      `}</style>
+
+      {/* Cabeçalho da Seção (Alinhado à esquerda) */}
+      <div className="mx-auto max-w-7xl px-6 custom-font-wrapper mb-16 text-left">
+        <p className="mb-3 font-sans text-sm uppercase tracking-[0.25em] text-gold">
+          Portfólio
+        </p>
+        <h2 className="font-serif text-3xl font-normal text-foreground md:text-4xl lg:text-5xl">
+          Álbuns
+        </h2>
+        <div className="mt-6 h-[1px] w-16 bg-gold/50" />
+        <p className="mt-6 max-w-lg font-sans text-base font-light leading-relaxed text-muted-foreground">
+          Explore as diferentes categorias e descubra como cada momento
+          especial pode ser transformado em memória eterna
+        </p>
+      </div>
+
+      {/* Grid de Cards (Largura Total) */}
+      <div className="w-full custom-font-wrapper">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0.5">
           {categories.map((category) => (
-            <Link
-              key={category.id}
-              to={`/categoria/${category.id}`}
-              className="group relative h-[400px] w-full cursor-pointer overflow-hidden rounded-sm transition-transform duration-500 hover:scale-[1.03] hover:z-10"
-            >
-              {/* Imagem de Fundo (Sem Zoom) */}
-              <img
-                src={category.image}
-                alt={`Fotografia de ${category.title}`}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              
-              {/* Overlay Gradiente (Sempre visível para legibilidade, mas escurece no hover) */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent transition-all duration-500 group-hover:from-black/80 group-hover:via-black/40" />
-
-              {/* Conteúdo */}
-              <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
-                <div className="mb-3 flex items-center gap-3 text-xs font-medium uppercase tracking-widest text-white/70">
-                  <span className="border border-white/30 px-2 py-1">
+            <Link key={category.id} to={`/categoria/${category.id}`}>
+              {/* Alterado de aspect-[3/4] para aspect-square para diminuir a altura */}
+              <article className="portfolio-item group relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300 aspect-square">
+                <img 
+                  src={category.image} 
+                  alt={`Fotografia de ${category.title}`} 
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Overlay Content */}
+                <div className="overlay absolute inset-0 bg-black/60 opacity-0 flex flex-col justify-center items-center text-center p-6 z-10">
+                  <h3 className="text-2xl text-white font-medium mb-4 serif-font italic">
                     {category.title}
-                  </span>
-                  <span>
-                    {albumCounts[category.id] || 0} Álbuns
-                  </span>
+                  </h3>
+                  <p className="text-sm text-gray-200 mb-6 font-light">
+                    {category.description}
+                  </p>
+                  
+                  <button className="border border-white text-white px-8 py-2 text-xs font-bold tracking-widest hover:bg-white hover:text-black transition-colors duration-300 uppercase">
+                    Ver Ensaio
+                  </button>
                 </div>
-                
-                <h3 className="font-serif text-2xl font-normal text-white md:text-3xl">
-                  {category.description}
-                </h3>
-                
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-white/80 transition-all duration-300 group-hover:text-white group-hover:gap-3">
-                  Ver Álbum <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
-                </div>
-              </div>
+              </article>
             </Link>
           ))}
         </div>

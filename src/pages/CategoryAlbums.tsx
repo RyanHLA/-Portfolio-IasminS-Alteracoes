@@ -6,12 +6,12 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 // Fallback images
-import casamentoImg from "@/assets/gallery-casamento.jpg";
-import gestanteImg from "@/assets/gallery-gestante.jpg";
-import quinzeImg from "@/assets/gallery-15anos.jpg";
-import preweddingImg from "@/assets/gallery-prewedding.jpg";
-import externoImg from "@/assets/gallery-externo.jpg";
-import eventosImg from "@/assets/gallery-eventos.jpg";
+import casamentoImg from "@/assets/casamento.jpg";
+import gestanteImg from "@/assets/gestante.jpg";
+import quinzeImg from "@/assets/15anos.jpg";
+import preweddingImg from "@/assets/prewedding.jpg";
+import externoImg from "@/assets/externo.jpg";
+import eventosImg from "@/assets/eventos.jpg";
 
 interface Album {
   id: string;

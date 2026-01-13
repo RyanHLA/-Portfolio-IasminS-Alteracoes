@@ -6,28 +6,29 @@ import Services from "@/components/Services";
 import Testimonials from "@/components/Testimonials";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
-import StickySection from "@/components/StickySection";
-import useStickyStack from "@/hooks/useStickyStack";
+// Você pode remover o import do StickySection e useStickyStack se não for usar mais
+// import StickySection from "@/components/StickySection";
+// import useStickyStack from "@/hooks/useStickyStack";
 
 const Index = () => {
-  const containerRef = useStickyStack();
+  // Remova a referência do hook
+  // const containerRef = useStickyStack();
 
   return (
     <main className="min-h-screen">
       <Header />
       
-      {/* Sticky Stack effect only for Hero and Gallery */}
-      <div ref={containerRef} className="relative w-full">
-        <StickySection index={0} className="bg-background">
-          <Hero />
-        </StickySection>
+      {/* Hero normal sem o efeito sticky */}
+      <section id="inicio">
+        <Hero />
+      </section>
         
-        <StickySection index={1} id="albuns" className="bg-background">
-          <Gallery />
-        </StickySection>
-      </div>
+      {/* Galeria como seção normal */}
+      <section id="albuns" className="bg-background">
+        <Gallery />
+      </section>
       
-      {/* Normal sections without effect */}
+      {/* Demais seções continuam iguais */}
       <section id="sobre">
         <About />
       </section>

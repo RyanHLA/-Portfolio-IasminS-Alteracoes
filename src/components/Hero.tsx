@@ -41,9 +41,7 @@ const Hero = () => {
 
       {/* Content */}
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
-        <p className="animate-fade-in mb-4 font-sans text-sm uppercase tracking-[0.3em] text-primary-foreground/90">
-          Fotografia com Emoção
-        </p>
+        
         
         <h1 className="animate-fade-in font-serif text-4xl font-light leading-tight text-primary-foreground md:text-5xl lg:text-6xl xl:text-7xl">
           Iasmin Santos
