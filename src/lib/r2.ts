@@ -15,7 +15,8 @@ export const r2Storage = {
         body: { 
           action: 'upload', 
           fileName, 
-          fileType: file.type 
+          fileType: file.type,
+          fileSize: file.size
         }
       });
 

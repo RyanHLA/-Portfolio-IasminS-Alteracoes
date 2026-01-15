@@ -8,17 +8,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// 1. Defina a lista de tipos permitidos (Whitelist)
-// <--- NOVO: Lista de segurança
+// CONFIGURAÇÕES DE SEGURANÇA
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (Ajuste conforme sua necessidade)
 const ALLOWED_MIME_TYPES = [
   'image/jpeg', 
   'image/png', 
   'image/webp', 
   //'image/gif',
-  //'image/svg+xml' // Opcional: Adicione apenas se você permitir SVG
+  //'image/svg+xml'
 ];
 
 serve(async (req) => {
+  // Tratamento de CORS Preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -27,30 +28,51 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) throw new Error('Missing Authorization header')
 
+    // 1. Setup do Cliente Supabase
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     )
 
+    // 2. Autenticação (Quem é?)
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
-      throw new Error('Usuário não autenticado ou token inválido')
+      throw new Error('Unauthorized: Usuário não autenticado.')
     }
 
-    const { action, fileName, fileType } = await req.json()
+    // 3. Autorização RBAC (É Admin?)
+    // <--- SEGURANÇA CRÍTICA: Verifica na tabela user_roles
+    const { data: roleData, error: roleError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
 
-    // 2. Validação de Segurança ANTES de conectar ao R2
+    if (roleError || !roleData) {
+        console.error(`[ACESSO BLOQUEADO] Usuário ${user.email} tentou upload sem permissão de admin.`);
+        throw new Error('Forbidden: Apenas administradores podem gerenciar arquivos.');
+    }
+
+    const { action, fileName, fileType, fileSize } = await req.json()
+
+    // 4. Validações de Upload
     if (action === 'upload') {
-        // <--- NOVO: Validação Rigorosa
+        // Validação de Tipo
         if (!fileType || !ALLOWED_MIME_TYPES.includes(fileType)) {
-            console.error(`[SEGURANÇA] Tentativa de upload de tipo inválido: ${fileType} por ${user.email}`);
-            throw new Error(`Tipo de arquivo não permitido (${fileType}). Apenas imagens são aceitas.`);
+            throw new Error(`Tipo de arquivo não permitido (${fileType}).`);
+        }
+
+        // <--- NOVO: Validação de Tamanho
+        // Nota: O navegador envia o tamanho em bytes.
+        if (fileSize && fileSize > MAX_FILE_SIZE) {
+            throw new Error(`Arquivo muito grande. Limite máximo é de ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
         }
     }
 
-    // Configuração R2
+    // 5. Configuração R2
     const s3 = new S3Client({
       region: "auto",
       endpoint: Deno.env.get('R2_ENDPOINT'),
@@ -67,6 +89,7 @@ serve(async (req) => {
         Bucket: bucketName,
         Key: fileName,
         ContentType: fileType,
+        // ContentLength: fileSize // Opcional: Se descomentar, o tamanho EXATO deve bater no upload, senão falha.
       })
       
       const url = await getSignedUrl(s3, command, { expiresIn: 60 })
@@ -90,6 +113,7 @@ serve(async (req) => {
     throw new Error('Invalid action')
 
   } catch (error) {
+    console.error("Erro na Edge Function:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 400, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
