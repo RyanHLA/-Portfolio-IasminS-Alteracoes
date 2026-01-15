@@ -1,63 +1,72 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-
-// Inicializa o cliente S3 (R2)
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: import.meta.env.VITE_R2_ENDPOINT,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-});
+import { supabase } from "@/integrations/supabase/client";
 
 export const r2Storage = {
-  // Função para Upload
   upload: async (file: File, folder: string = 'gallery'): Promise<string | null> => {
     try {
+      // Sanitização básica do nome do arquivo
       const fileExt = file.name.split('.').pop();
-      // Gera nome único
-      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9]/g, '-');
+      const fileName = `${folder}/${Date.now()}-${cleanFileName}.${fileExt}`;
 
-      // --- A CORREÇÃO ESTÁ AQUI ---
-      // Convertemos o File para ArrayBuffer e depois para Uint8Array
-      // Isso impede que o AWS SDK tente usar streams incompatíveis
-      const fileBuffer = await file.arrayBuffer();
-      const fileBody = new Uint8Array(fileBuffer);
+      console.log("Solicitando URL de upload para:", fileName);
 
-      const command = new PutObjectCommand({
-        Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
-        Key: fileName,
-        Body: fileBody, // Enviamos o buffer, não o objeto File direto
-        ContentType: file.type,
-        ContentLength: file.size, // Boa prática informar o tamanho
+      // 1. Invoca a Edge Function para obter a URL assinada
+      const { data, error: functionError } = await supabase.functions.invoke('upload-url2', {
+        body: { 
+          action: 'upload', 
+          fileName, 
+          fileType: file.type 
+        }
       });
 
-      await r2Client.send(command);
+      if (functionError) {
+        console.error("Erro na Edge Function:", functionError);
+        throw functionError;
+      }
 
-      // Retorna a URL pública
-      return `${import.meta.env.VITE_R2_PUBLIC_URL}/${fileName}`;
+      if (!data?.url) {
+        throw new Error("URL de upload não retornada pela função.");
+      }
+
+      // 2. Faz o upload do arquivo binário diretamente para o R2 usando a URL
+      const uploadResponse = await fetch(data.url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Falha no upload para o R2: ${uploadResponse.statusText}`);
+      }
+
+      // Retorna a URL pública final para visualização
+      // Certifique-se que VITE_R2_PUBLIC_URL está definido no .env ou substitua pela string direta
+      const publicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
+      return `${publicUrl}/${fileName}`;
+
     } catch (error) {
-      console.error("Erro no upload R2:", error);
+      console.error("Erro no processo de upload:", error);
+      // Opcional: Mostrar toast de erro aqui se tiver acesso à biblioteca de UI
       return null;
     }
   },
 
-  // Função para Deletar
-  delete: async (imageUrl: string) => {
+  delete: async (fileName: string): Promise<boolean> => {
     try {
-      if (!imageUrl) return;
-
-      const publicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
-      const key = imageUrl.replace(`${publicUrl}/`, '');
-
-      const command = new DeleteObjectCommand({
-        Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
-        Key: key,
+      const { error } = await supabase.functions.invoke('upload-url2', {
+        body: { 
+          action: 'delete', 
+          fileName 
+        }
       });
 
-      await r2Client.send(command);
+      if (error) throw error;
+      return true;
     } catch (error) {
-      console.error("Erro ao deletar do R2:", error);
+      console.error("Erro ao deletar arquivo:", error);
+      return false;
     }
   }
 };

@@ -121,13 +121,11 @@ const Gallery = () => {
         }
       `}</style>
 
-      {/* Cabeçalho da Seção (Alinhado à esquerda) */}
-      <div className="mx-auto max-w-7xl px-6 custom-font-wrapper mb-16 text-left">
-        <p className="mb-3 font-sans text-sm uppercase tracking-[0.25em] text-gold">
-          Portfólio
-        </p>
+      {/* Cabeçalho da Seção (Agora totalmente à esquerda) */}
+      {/* REMOVIDO: mx-auto e max-w-7xl para tirar a centralização */}
+      <div className="w-full px-6 custom-font-wrapper mb-16 text-left">
         <h2 className="font-serif text-3xl font-normal text-foreground md:text-4xl lg:text-5xl">
-          Álbuns
+          Trabalhos
         </h2>
         <div className="mt-6 h-[1px] w-16 bg-gold/50" />
         <p className="mt-6 max-w-lg font-sans text-base font-light leading-relaxed text-muted-foreground">
@@ -141,7 +139,6 @@ const Gallery = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0.5">
           {categories.map((category) => (
             <Link key={category.id} to={`/categoria/${category.id}`}>
-              {/* Alterado de aspect-[3/4] para aspect-square para diminuir a altura */}
               <article className="portfolio-item group relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300 aspect-square">
                 <img 
                   src={category.image} 
