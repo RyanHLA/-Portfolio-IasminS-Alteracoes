@@ -4,12 +4,9 @@ import imgSobreMim from "@/assets/imgSobreMim.jpg";
 const About = () => {
   const HeaderContent = () => (
     <div className="space-y-4">
-      <span className="text-accent uppercase tracking-[0.2em] text-xs font-bold">
-        Quem Sou Eu
-      </span>
-      <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-light leading-tight text-gray-900">
-        Capturando a alma <br />
-        <span className="italic text-gray-500">do momento.</span>
+      <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-light leading-tight text-gray-500">
+        Muito prazer, me chamo Iasmin! 
+        <span className="italic text-gray-500"></span>
       </h1>
     </div>
   );
@@ -99,7 +96,7 @@ const About = () => {
             </div>
 
             {/* Redes Sociais e Botão */}
-            <div className="pt-6 flex flex-col md:flex-row items-start md:items-center gap-8">
+            <div className="pt-6 flex flex-row items-center gap-4 md:gap-8 flex-wrap sm:flex-nowrap">
               <div className="flex gap-4">
                 <a
                   href="#"
@@ -122,14 +119,26 @@ const About = () => {
               </div>
 
               {/* Botão */}
-              <button className="relative inline-flex h-12 overflow-hidden rounded-full p-[2px] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-50 group">
-                <span className="absolute inset-[-1000%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#f5f5f4_0%,hsl(var(--gold))_50%,#f5f5f4_100%)]"></span>
-                <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-gray-900 px-8 py-3 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-3xl">
-                  <span className="flex items-center gap-2">
-                    Vamos conversar <ArrowRight className="w-4 h-4" />
-                  </span>
-                </span>
-              </button>
+              {/* --- Novo Botão Glassmorphism (Adaptado para Fundo Claro) --- */}
+              <div className="relative group">
+                {/* Glow effect behind (adaptado para escuro) */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-200 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                
+                {/* Botão Principal */}
+                <button className="relative flex items-center gap-4 px-8 py-2 bg-black/5 backdrop-blur-sm border border-black/10 rounded-full hover:bg-black/10 hover:border-black/20 transition-all duration-300">
+                  <div>
+                    {/* Texto (cor alterada para gray-900 para contraste) */}
+                    <span className="text-gray-900 font-medium text-lg font-serif italic">
+                      Quero conversar
+                    </span>
+                  </div>
+                  
+                  {/* Círculo da Seta (invertido: fundo preto, seta branca) */}
+                  <div className="h-8 w-8 bg-gray-900 rounded-full flex items-center justify-center text-white group-hover:scale-105 transition-transform duration-300">
+                    <ArrowRight size={16} className="-rotate-45 group-hover:rotate-0 transition-transform duration-300" />
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         </div>

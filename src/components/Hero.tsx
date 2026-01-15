@@ -47,9 +47,7 @@ const Hero = () => {
           Iasmin Santos
         </h1>
         
-        <p className="animate-fade-in-delay mt-6 max-w-xl font-sans text-base font-light leading-relaxed text-primary-foreground/85 md:text-lg">
-          Eternizando momentos únicos através de olhares, sorrisos e histórias de amor
-        </p>
+        
 
         <Button
           variant="hero"
@@ -58,16 +56,6 @@ const Hero = () => {
         >
           Solicite um Orçamento
         </Button>
-      </div>
-
-      {/* Scroll Indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-fade-in-delay-3">
-        <div className="flex flex-col items-center gap-2">
-          <span className="font-sans text-xs uppercase tracking-widest text-primary-foreground/60">
-            Explore
-          </span>
-          <div className="h-12 w-[1px] bg-gradient-to-b from-primary-foreground/40 to-transparent" />
-        </div>
       </div>
     </section>
   );

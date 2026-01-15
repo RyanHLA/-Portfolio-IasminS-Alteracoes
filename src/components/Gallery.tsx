@@ -139,7 +139,7 @@ const Gallery = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0.5">
           {categories.map((category) => (
             <Link key={category.id} to={`/categoria/${category.id}`}>
-              <article className="portfolio-item group relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300 aspect-square">
+              <article className="portfolio-item group relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300 aspect-video">
                 <img 
                   src={category.image} 
                   alt={`Fotografia de ${category.title}`} 
