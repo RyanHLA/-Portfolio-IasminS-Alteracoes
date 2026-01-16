@@ -1,25 +1,32 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import heroImageFallback from "@/assets/hero-wedding.jpg";
+import heroImageFallback from "@/assets/herocasamento.jpg"; 
 
 const Hero = () => {
-  const [heroImage, setHeroImage] = useState<string>(heroImageFallback);
+  const [images, setImages] = useState({
+    desktop: heroImageFallback,
+    mobile: heroImageFallback
+  });
 
   useEffect(() => {
-    const fetchHeroImage = async () => {
+    const fetchHeroImages = async () => {
       const { data } = await supabase
         .from('site_images')
-        .select('image_url')
-        .eq('section', 'hero')
-        .maybeSingle();
+        .select('section, image_url')
+        .in('section', ['hero', 'hero_mobile']);
 
-      if (data?.image_url) {
-        setHeroImage(data.image_url);
+      if (data && data.length > 0) {
+        const desktopImg = data.find(img => img.section === 'hero')?.image_url;
+        const mobileImg = data.find(img => img.section === 'hero_mobile')?.image_url;
+
+        setImages({
+          desktop: desktopImg || heroImageFallback,
+          mobile: mobileImg || desktopImg || heroImageFallback
+        });
       }
     };
 
-    fetchHeroImage();
+    fetchHeroImages();
   }, []);
 
   const scrollToContact = () => {
@@ -29,33 +36,58 @@ const Hero = () => {
 
   return (
     <section className="relative h-screen min-h-[600px] w-full overflow-hidden">
-      {/* Background Image */}
+      
+      {/* Background Images */}
       <div className="absolute inset-0">
         <img
-          src={heroImage}
-          alt="Fotografia de casamento por Iasmin Santos"
-          className="h-full w-full object-cover object-center"
+          src={images.mobile}
+          alt="Fotografia Mobile"
+          className="block md:hidden h-full w-full object-cover"
+        />
+        <img
+          src={images.desktop}
+          alt="Fotografia Desktop"
+          className="hidden md:block h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-soft-black/30 via-soft-black/20 to-soft-black/60" />
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
-        
+      <div className="relative z-10 flex h-full flex-col items-start justify-end px-6 pb-24 text-left md:px-20 md:pb-32">
         
         <h1 className="animate-fade-in font-serif text-4xl font-light leading-tight text-primary-foreground md:text-5xl lg:text-6xl xl:text-7xl">
           Iasmin Santos
         </h1>
-        
-        
 
-        <Button
-          variant="hero"
+        <p className="mt-4 animate-fade-in font-sans text-lg font-light text-white/90 md:text-xl [animation-delay:100ms]">
+          Eternizando momentos únicos com sensibilidade
+        </p>
+        
+        {/* --- BOTÃO NOVO (GLASSMORPHISM) --- */}
+        <button 
           onClick={scrollToContact}
-          className="animate-fade-in-delay-2 mt-10"
+          className="
+            group
+            relative
+            flex
+            items-center
+            justify-center
+            bg-white/10 hover:bg-white/20
+            backdrop-blur-sm
+            border border-white/30
+            text-white font-bold font-sans /* font-sans adicionada para preservar sua fonte */
+            py-2 px-6
+            rounded-none
+            shadow-lg hover:shadow-xl hover:shadow-white/10
+            transition-all duration-300 ease-in-out
+            transform hover:-translate-y-1 active:translate-y-0 active:scale-95
+            focus:outline-none focus:ring-4 focus:ring-white/30
+            mt-8 animate-fade-in opacity-0 [animation-delay:200ms] [animation-fill-mode:forwards]
+          "
         >
-          Solicite um Orçamento
-        </Button>
+            <span className="drop-shadow-md">Solicitar Orçamento</span>
+        </button>
+
       </div>
     </section>
   );

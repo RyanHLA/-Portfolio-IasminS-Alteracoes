@@ -1,70 +1,67 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Images } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-interface Album {
-  id: string;
-  title: string;
-  category: string;
-  event_date: string | null;
-  cover_image_url: string | null;
-}
-
-interface Photo {
+interface AlbumPhoto {
   id: string;
   image_url: string;
-  title: string | null;
-  description: string | null;
+  display_order: number | null;
 }
 
-const categoryTitles: Record<string, string> = {
-  casamentos: "Casamentos",
-  gestantes: "Gestantes",
-  "15-anos": "15 Anos",
-  "pre-wedding": "Pré-Wedding",
-  externo: "Externo",
-  eventos: "Eventos",
-};
+// CORREÇÃO 1: Removido 'description' da interface pois não existe na tabela albums
+interface AlbumDetails {
+  id: string;
+  title: string;
+  event_date: string | null;
+}
 
 const AlbumPhotos = () => {
   const { albumId } = useParams<{ albumId: string }>();
-  const [album, setAlbum] = useState<Album | null>(null);
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const navigate = useNavigate();
+  const [photos, setPhotos] = useState<AlbumPhoto[]>([]);
+  const [album, setAlbum] = useState<AlbumDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!albumId) return;
 
-    const fetchData = async () => {
+    const fetchAlbumData = async () => {
       setLoading(true);
-
-      // Fetch album details
-      const { data: albumData } = await supabase
+      
+      // 1. Buscar detalhes do álbum
+      // CORREÇÃO 2: Removido 'description' do select
+      const { data: albumData, error } = await supabase
         .from("albums")
-        .select("*")
+        .select("id, title, event_date")
         .eq("id", albumId)
         .single();
+
+      if (error) {
+        console.error("Erro ao buscar álbum:", error);
+      }
 
       if (albumData) {
         setAlbum(albumData);
 
-        // Fetch photos
+        // 2. Buscar fotos do álbum na tabela correta (site_images)
         const { data: photosData } = await supabase
-          .from("site_images")
-          .select("*")
+          .from("site_images") 
+          .select("id, image_url, display_order")
           .eq("album_id", albumId)
-          .order("display_order");
+          .order("display_order", { ascending: true });
 
-        setPhotos(photosData || []);
+        if (photosData) {
+          setPhotos(photosData);
+        }
       }
-
+      
       setLoading(false);
     };
 
-    fetchData();
+    fetchAlbumData();
   }, [albumId]);
 
   const formatDate = (dateString: string | null) => {
@@ -80,8 +77,8 @@ const AlbumPhotos = () => {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex flex-1 items-center justify-center">
-          <p className="text-muted-foreground">Carregando...</p>
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground animate-pulse">Carregando fotos...</p>
         </main>
         <Footer />
       </div>
@@ -92,7 +89,7 @@ const AlbumPhotos = () => {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex flex-1 items-center justify-center">
+        <main className="flex-1 flex items-center justify-center">
           <p className="text-muted-foreground">Álbum não encontrado.</p>
         </main>
         <Footer />
@@ -100,98 +97,69 @@ const AlbumPhotos = () => {
     );
   }
 
-  const categoryTitle = categoryTitles[album.category] || album.category;
-
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header />
+      
       <main className="flex-1">
-        {/* Hero Banner */}
-        <div className="relative h-64 overflow-hidden bg-muted md:h-80">
-          {album.cover_image_url ? (
-            <img
-              src={album.cover_image_url}
-              alt={album.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center bg-muted">
-              <Images className="h-16 w-16 text-muted-foreground/30" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-soft-black/60" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <p className="mb-2 font-sans text-sm uppercase tracking-[0.25em] text-gold">
-              {categoryTitle}
-            </p>
-            <h1 className="font-serif text-3xl font-normal text-primary-foreground md:text-4xl lg:text-5xl">
-              {album.title}
-            </h1>
-            {album.event_date && (
-              <p className="mt-4 font-sans text-sm text-primary-foreground/80">
-                {formatDate(album.event_date)}
-              </p>
-            )}
-          </div>
-        </div>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
+          
+          .serif-font {
+              font-family: 'Cormorant Garamond', serif;
+          }
+          .sans-font {
+              font-family: 'Montserrat', sans-serif;
+          }
+        `}</style>
 
-        {/* Content */}
-        <section className="section-padding bg-background">
+        <div className="section-padding">
           <div className="mx-auto max-w-7xl px-6">
-            {/* Breadcrumbs */}
-            <div className="mb-8 flex items-center gap-2 text-sm">
-              <Link
-                to="/#albuns"
-                className="text-muted-foreground transition-colors hover:text-gold"
-              >
-                Álbuns
-              </Link>
-              <span className="text-muted-foreground">/</span>
-              <Link
-                to={`/categoria/${album.category}`}
-                className="text-muted-foreground transition-colors hover:text-gold"
-              >
-                {categoryTitle}
-              </Link>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-foreground">{album.title}</span>
-            </div>
-
-            {/* Back button */}
-            <Link
-              to={`/categoria/${album.category}`}
-              className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-gold"
+            
+            {/* Botão Voltar */}
+            <button
+              onClick={() => navigate(-1)}
+              className="mb-8 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-gold sans-font"
             >
               <ChevronLeft className="h-4 w-4" />
-              Voltar para {categoryTitle}
-            </Link>
+              Voltar para Álbuns
+            </button>
 
-            {photos.length === 0 ? (
-              <div className="py-16 text-center">
-                <Images className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                <p className="text-muted-foreground">
-                  Nenhuma foto neste álbum ainda.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {photos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="group aspect-square overflow-hidden rounded-lg"
-                  >
-                    <img
-                      src={photo.image_url}
-                      alt={photo.title || "Foto do álbum"}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Cabeçalho do Álbum */}
+            <div className="mb-16 text-center max-w-3xl mx-auto">
+              <span className="text-gold tracking-[0.2em] text-xs uppercase font-semibold mb-3 block">
+                {album.event_date ? formatDate(album.event_date) : "Portfólio"}
+              </span>
+              <h1 className="serif-font text-4xl md:text-5xl lg:text-6xl text-foreground font-normal mb-6">
+                {album.title}
+              </h1>
+              {/* CORREÇÃO 3: Removida a renderização da descrição que não existe */}
+            </div>
+
+            {/* LISTA DE FOTOS - Coluna única e formato real */}
+            <div className="flex flex-col gap-8 md:gap-16 max-w-5xl mx-auto">
+              {photos.map((photo) => (
+                <div key={photo.id} className="w-full fade-in-up">
+                  <img
+                    src={photo.image_url}
+                    alt={`Foto do álbum ${album.title}`}
+                    className="w-full h-auto shadow-sm"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+
+              {photos.length === 0 && (
+                <div className="text-center py-20 bg-muted/30 rounded-lg">
+                  <p className="text-muted-foreground sans-font">Nenhuma foto encontrada neste álbum.</p>
+                </div>
+              )}
+            </div>
+
           </div>
-        </section>
+        </div>
       </main>
+      
       <Footer />
     </div>
   );

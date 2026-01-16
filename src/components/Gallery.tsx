@@ -129,8 +129,7 @@ const Gallery = () => {
         </h2>
         <div className="mt-6 h-[1px] w-16 bg-gold/50" />
         <p className="mt-6 max-w-lg font-sans text-base font-light leading-relaxed text-muted-foreground">
-          Explore as diferentes categorias e descubra como cada momento
-          especial pode ser transformado em memória eterna
+          Veja algmas das categorias dos meus ensaios
         </p>
       </div>
 

@@ -83,6 +83,33 @@ const CategoryAlbums = () => {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
+          
+          .custom-font-wrapper {
+              font-family: 'Montserrat', sans-serif;
+          }
+          
+          .serif-font {
+              font-family: 'Cormorant Garamond', serif;
+          }
+
+          /* Hover Overlay Animation */
+          .portfolio-item:hover .overlay {
+              opacity: 1;
+              transform: translateY(0);
+          }
+          
+          .portfolio-item .overlay {
+              transition: all 0.4s ease-in-out;
+              transform: translateY(10px);
+          }
+
+          .portfolio-item img {
+              transition: transform 0.6s ease-in-out;
+          }
+        `}</style>
+
         {/* Hero Banner */}
         <div className="relative h-64 overflow-hidden md:h-80">
           <img
@@ -140,39 +167,44 @@ const CategoryAlbums = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {albums.map((album) => (
-                  <Link
-                    key={album.id}
-                    to={`/album/${album.id}`}
-                    className="group cursor-pointer overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:border-gold/30 hover:shadow-lg"
-                  >
-                    <div className="aspect-[4/3] overflow-hidden bg-muted">
-                      {album.cover_image_url ? (
-                        <img
-                          src={album.cover_image_url}
-                          alt={album.title}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <Images className="h-12 w-12 text-muted-foreground/30" />
+              <div className="custom-font-wrapper">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0.5">
+                  {albums.map((album) => (
+                    <Link key={album.id} to={`/album/${album.id}`}>
+                      <article className="portfolio-item group relative overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300 aspect-video">
+                        {album.cover_image_url ? (
+                          <img 
+                            src={album.cover_image_url} 
+                            alt={`Capa do álbum ${album.title}`} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <Images className="h-12 w-12 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        
+                        {/* Overlay Content */}
+                        <div className="overlay absolute inset-0 bg-black/60 opacity-0 flex flex-col justify-center items-center text-center p-6 z-10">
+                          <h3 className="text-2xl text-white font-medium mb-4 serif-font italic">
+                            {album.title}
+                          </h3>
+                          
+                          {album.event_date && (
+                            <p className="text-sm text-gray-200 mb-6 font-light flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              {formatDate(album.event_date)}
+                            </p>
+                          )}
+                          
+                          <button className="border border-white text-white px-8 py-2 text-xs font-bold tracking-widest hover:bg-white hover:text-black transition-colors duration-300 uppercase">
+                            Ver Álbum
+                          </button>
                         </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-serif text-lg text-foreground">
-                        {album.title}
-                      </h3>
-                      {album.event_date && (
-                        <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {formatDate(album.event_date)}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
+                      </article>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
